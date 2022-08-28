@@ -139,6 +139,7 @@ local function light_name(pos, factor)
 	end
 end
 
+--[[
 local function update_inv(player)
 	for i=1, inv:get_size("main") do
 		local stack = inv:get_stack("main", i)
@@ -151,6 +152,12 @@ local function update_inv(player)
 		end	
 	end
 end
+]]
+
+-- I have to go to sleep because I'll go to university tomorrow, and this 
+-- function doesn't really do much yet, so I'll
+-- comment unfinished battery-related stuff out. The flashlight will still
+-- work as intended, anyways.
 
 -- Why is this public? (makes no sense for it do be, it's internally used, and calls outside could be bad)
 -- lissobone: cuz i was testing
@@ -270,8 +277,9 @@ local function update_illumination(player)
 	goodtorch.player_lights[name].pos = nil
 end
 
-local timer = 0
+-- local timer = 0
 
+--[[
 minetest.register_globalstep(function(dtime)
 	timer = timer + dtime
 	if timer < 5 then return end
@@ -282,6 +290,7 @@ minetest.register_globalstep(function(dtime)
 		end
 	end
 end)
+]]
 
 minetest.register_globalstep(function()
 	for _, player in pairs(minetest.get_connected_players()) do
