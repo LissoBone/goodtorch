@@ -150,9 +150,8 @@ local function get_light_node(player)
 				z = player_pos.z + (math.sin(look_dir.z)*i)
 			}
 			lfactor = math.floor((-(100/dist))*(i/(7 + 1/7))+14)
-			minetest.log(lfactor)
 			node = minetest.get_node_or_nil(p)
-			if node == nil or lfactor < 0 then
+			if node == nil or lfactor < 0 or lfactor > 14 then
 				return
 			end
 			-- If you spawned in a world pointing at an unloaded
