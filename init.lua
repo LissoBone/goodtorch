@@ -17,18 +17,26 @@
 ]]
 
 -- Thank you, ApolloX, for adding this.
--- ApollloX: No problem, glade to help.
+
+-- TODO: Finish implementing the battery drain. I took the code from the
+-- headlamp mod. 
 
 local player_lights = {}
-
-local function get_eye_pos(player)
-	if not player or not minetest.is_player(player) then
-		return -- Invalid player object
+local PLAYER_EYE_POS = 1.5 -- Move this possibly to code generation (rather than ugly hardcode)
+local has_technic = minetest.get_modpath("technic")
+local drain_inv = minetest.settings:get_bool("flashlight_drain_inventory", true)
+local battery_life = tonumber(minetest.settings:get("flashlight_battery_life")) or 130
+local battery_drain = math.floor(65535 / (battery_life * 60)) * 5
+local dist = tonumber(minetest.settings:get("flashlight_strength")) or 100
+local function use_battery(stack)
+	if stack:get_wear() >= (65535 - battery_drain) then
+		stack:set_name("goodtorch:flashlight_off")
+		return false
 	end
-	local props = player:get_properties()
-	--minetest.log("action", "[goodtorch] "..minetest.serialize(props))
-	return props.eye_height -- for first person eye offset
+	stack:add_wear(battery_drain)
+	return true
 end
+
 
 local function can_replace(pos)
 	local n = minetest.get_node_or_nil(pos)
@@ -103,9 +111,22 @@ local function light_name(pos, factor)
 	end
 end
 
--- ApolloX: Ok, well good to know.
+local function update_inv(player)
+	for i=1, inv:get_size("main") do
+		local stack = inv:get_stack("main", i)
+		if stack:get_name() == "goodtorch:flashlight_on" then
+			local success = use_battery(stack)
+			inv:set_stack("main", i, stack)
+			if not success then
+					return
+			end
+		end	
+	end
+end
+
+-- Why is this public? (makes no sense for it do be, it's internally used, and calls outside could be bad)
+-- lissobone: cuz i was testing
 local function get_light_node(player)
-	local player_eye_offset = get_eye_pos(player)
 	local inv = player:get_inventory()
 	local lfactor = 0 -- Light level, closer is brighter, farther is darker (possibly not existent)
 	-- local item = player:get_wielded_item():get_name() -- Perhaps move to like Technic's flashlight in hotbar and on
@@ -113,24 +134,25 @@ local function get_light_node(player)
 	local look_dir = player:get_look_dir()
 	-- I made it so the flashlight always works when it's in the player's
 	-- inventory and switched on. Very cozy!
-	-- ApolloX: Ah, nice idea.
 	if inv:contains_item("main", "goodtorch:flashlight_on") then
+		
 		local p = vector.zero() -- current node we are checking out
 		local nn = "" -- node name for the light node to replace the target with
 		local node = nil -- The node we are checking out, if it's not possible we need to stop
 		local best = nil -- Closest position that's ok to replace/light up
 		local done = false -- Stop it, I want to get off!
-		for i = 0, 100, 1 do
+		for i = 0, dist, 1 do
 			player_pos = player:get_pos()
 			look_dir = player:get_look_dir()
 			p = {
 				x = player_pos.x + (math.sin(look_dir.x)*i),
-				y = player_pos.y + player_eye_offset+(math.sin(look_dir.y)*i),
+				y = player_pos.y + PLAYER_EYE_POS+(math.sin(look_dir.y)*i),
 				z = player_pos.z + (math.sin(look_dir.z)*i)
 			}
-			lfactor = math.floor(0.14*(100-i))
+			lfactor = math.floor((-(100/dist))*(i/(7 + 1/7))+14)
+			minetest.log(lfactor)
 			node = minetest.get_node_or_nil(p)
-			if node == nil then -- ApolloX: Oh yeah didn't check that, that's why get_node_or_nil is so great.
+			if node == nil or lfactor < 0 then
 				return
 			end
 			-- If you spawned in a world pointing at an unloaded
@@ -144,7 +166,7 @@ local function get_light_node(player)
 			if can_replace(p) ~= "" then -- If it's valid let's continue with valid choices
 				p = {
 					x = player_pos.x + (math.sin(look_dir.x)*(i-1)),
-					y = player_pos.y + player_eye_offset+(math.sin(look_dir.y)*(i-1)),
+					y = player_pos.y + PLAYER_EYE_POS+(math.sin(look_dir.y)*(i-1)),
 					z = player_pos.z + (math.sin(look_dir.z)*(i-1))
 				}
 				nn = light_name(p, lfactor)
@@ -215,6 +237,19 @@ local function update_illumination(player)
 	remove_light(old_pos)
 	player_lights[name].pos = nil
 end
+
+local timer = 0
+
+minetest.register_globalstep(function(dtime)
+	timer = timer + dtime
+	if timer < 5 then return end
+	timer = 0
+	for _, player in pairs(minetest.get_connected_players()) do
+		if not minetest.is_creative_enabled(player:get_player_name()) then
+			update_inv(player)
+		end
+	end
+end)
 
 minetest.register_globalstep(function()
 	for _, player in pairs(minetest.get_connected_players()) do
