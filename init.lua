@@ -20,7 +20,7 @@
 -- ApollloX: No problem, glade to help.
 
 goodtorch = {} -- Public API
-goodtorch.modpath = minetest.get_mod_path("goodtorch")
+goodtorch.modpath = minetest.get_modpath("goodtorch")
 
 goodtorch.player_lights = {}
 goodtorch.nodes = { -- Replacement nodes (excluding our own nodes, as they don't change)
@@ -242,21 +242,23 @@ end)
 
 minetest.register_on_joinplayer(function(player)
 	local name = player:get_player_name()
-	if not player_lights[name] then
+	if not goodtorch.player_lights[name] then
 		goodtorch.player_lights[name] = {}
 	end
 end)
 
 minetest.register_on_leaveplayer(function(player)
 	local name = player:get_player_name()
-	if player_lights[name] then
-		remove_light(player_lights[name].pos)
+	if goodtorch.player_lights[name] then
+		remove_light(goodtorch.player_lights[name].pos)
 	end
 	goodtorch.player_lights[name] = nil
 end)
 
-local water_sound = default.node_sound_water_defaults()
-if goodtorch.detect_gamemode() == "MCL" then
+local water_sound = nil
+if goodtorch.detect_gamemode() == "MTG" then
+	water_sounds = default.node_sound_water_defaults()
+elseif goodtorch.detect_gamemode() == "MCL" then
 	water_sound = mcl_sounds.node_sound_water_defaults()
 end
 
