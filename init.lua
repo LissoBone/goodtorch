@@ -18,6 +18,30 @@
 
 -- Thank you, ApolloX, for adding this.
 
+goodtorch = {} -- Public API
+goodtorch.modpath = minetest.get_modpath("goodtorch")
+
+goodtorch.player_lights = {}
+goodtorch.nodes = { -- Replacement nodes (excluding our own nodes, as they don't change)
+	-- Don't need air as air is always air. (That's a lot of air)
+	water = {
+		source = "",
+		flowing = "" -- Uses param2
+	},
+	river = {
+		source = "",
+		flowing = "" -- Uses param2
+	}
+}
+dofile(goodtorch.modpath .. DIR_DELIM .. "api.lua")
+
+if goodtorch.detect_gamemode() == "MTG" then
+	goodtorch.default_nodeset()
+elseif goodtorch.detect_gamemode() == "MCL" then
+	goodtorch.mcl_nodeset()
+else
+	error("This game isn't supported, please go and leave an issue on the github repository with the game name.")
+end
 -- TODO: Finish implementing the battery drain. I took the code from the
 -- headlamp mod. 
 
@@ -33,10 +57,10 @@ local function use_battery(stack)
 		stack:set_name("goodtorch:flashlight_off")
 		return false
 	end
-	stack:add_wear(battery_drain)
-	return true
-end
 
+	local props = player:get_properties()
+	--minetest.log("action", "[goodtorch] "..minetest.serialize(props))
+	return props.eye_height
 
 local function can_replace(pos)
 	local n = minetest.get_node_or_nil(pos)
@@ -47,13 +71,14 @@ local function can_replace(pos)
 	local param2 = n.param2 -- Only used for flowing water sources (water, river water)
 	if nn == "air" or string.match(nn, "goodtorch:light_%d+$") then
 		return "air"
-	elseif nn == "default:water_source" or string.match(nn, "goodtorch:light_water_%d+$") then
+	elseif nn == goodtorch.nodes.water.source or string.match(nn, "goodtorch:light_water_%d+$") then
 		return "aqua"
-	elseif nn == "default:water_flowing" or string.match(nn, "goodtorch:light_water_flowing_%d+$") then -- 0 to 7 (0 could be ignored and marked as air)
+	elseif nn == goodtorch.nodes.water.flowing or string.match(nn, "goodtorch:light_water_flowing_%d+$") then -- 0 to 7 (0 could be ignored and marked as air)
 		return "aqua_flow_" .. param2
-	elseif nn == "default:river_water_source" or string.match(nn, "goodtorch:light_river_%d+$") then
+	-- These 2 below won't work in MineClone (it will be comparing node name to an empty string, so it's fine to leave it like this)
+	elseif nn == goodtorch.nodes.river.source or string.match(nn, "goodtorch:light_river_%d+$") then
 		return "aqua_river"
-	elseif nn == "default:river_water_flowing" or string.match(nn, "goodtorch:light_river_flowing_%d+$") then -- 0 to 2 (0 could be ignored and marked as air)
+	elseif nn == goodtorch.nodes.river.flowing or string.match(nn, "goodtorch:light_river_flowing_%d+$") then -- 0 to 2 (0 could be ignored and marked as air)
 		return "aqua_river_flow_" .. param2
 	else -- Unknown node?
 		return ""
@@ -71,15 +96,16 @@ local function remove_light(pos)
 	if can_repl == "air" then
 		minetest.set_node(pos, {name = "air"})
 	elseif can_repl == "aqua" then
-		minetest.set_node(pos, {name = "default:water_source"})
+		minetest.set_node(pos, {name = goodtorch.nodes.water.source})
 	elseif string.match(can_repl, "aqua_flow") then -- Needs param2, "aqua_flow_<param2>"
 		local param2 = can_repl:gsub("aqua_flow_", "")
-		minetest.set_node(pos, {name = "default:water_flowing", param2=tonumber(param2)})
+		minetest.set_node(pos, {name = goodtorch.nodes.water.flowing, param2=tonumber(param2)})
+	-- These 2 below won't work in MineClone (this should crash as we try to set a node name an empty string into a position, but because the can_replace code shouldn't make use of aqua_river it should be fine/un noticed)
 	elseif can_repl == "aqua_river" then
-		minetest.set_node(pos, {name = "default:river_water_source"})
+		minetest.set_node(pos, {name = goodtorch.nodes.river.source})
 	elseif string.match(can_repl, "aqua_river_flow") then -- Needs param2, "aqua_river_flow_<param2>"
 		local param2 = can_repl:gsub("aqua_river_flow_", "")
-		minetest.set_node(pos, {name = "default:river_water_flowing", param2=tonumber(param2)})
+		minetest.set_node(pos, {name = goodtorch.nodes.river.flowing, param2=tonumber(param2)})
 	else -- Emergency fallback (let someone know!)
 		minetest.log("action", "[goodtorch] can_replace('" + tostring(pos) + "') => '" + can_repl + "', expected string in {'air', 'aqua', 'aqua_flow_*', 'aqua_river', 'aqua_river_*'}")
 	end
@@ -126,14 +152,18 @@ end
 
 -- Why is this public? (makes no sense for it do be, it's internally used, and calls outside could be bad)
 -- lissobone: cuz i was testing
+
 local function get_light_node(player)
 	local inv = player:get_inventory()
 	local lfactor = 0 -- Light level, closer is brighter, farther is darker (possibly not existent)
-	-- local item = player:get_wielded_item():get_name() -- Perhaps move to like Technic's flashlight in hotbar and on
+	-- local item = player:get_wielded_item():get_name()
 	local player_pos = player:get_pos()
 	local look_dir = player:get_look_dir()
+
+	-- Check the player has a flashlight on in their inventory (anywhere, except crafting grid)
 	-- I made it so the flashlight always works when it's in the player's
 	-- inventory and switched on. Very cozy!
+
 	if inv:contains_item("main", "goodtorch:flashlight_on") then
 		
 		local p = vector.zero() -- current node we are checking out
@@ -149,16 +179,18 @@ local function get_light_node(player)
 				y = player_pos.y + PLAYER_EYE_POS+(math.sin(look_dir.y)*i),
 				z = player_pos.z + (math.sin(look_dir.z)*i)
 			}
+
+-- ApolloX: Possibly check this is 0 if so break, don't do anything then
+-- Aye, done, now it's also configurable.
+
 			lfactor = math.floor((-(100/dist))*(i/(7 + 1/7))+14)
+
 			node = minetest.get_node_or_nil(p)
 			if node == nil or lfactor < 0 or lfactor > 14 then
 				return
 			end
-			-- If you spawned in a world pointing at an unloaded
-			-- airy (NOT HAIRY) area, the game would crash
-			-- because of an attempt to index a nil value.
-			-- This is ought to aid this critical error.
-			if node.name ~= "air" and node.name ~= "default:water_source" and node.name ~= "default:water_flowing" and node.name ~= "default:river_water_source" and node.name ~= "default:river_water_flowing" and not string.match(node.name, "goodtorch:light_") then
+			-- This check might break from checking node.name == "" from river water in a MineClone environment
+			if node.name ~= "air" and node.name ~= goodtorch.nodes.water.source and node.name ~= goodtorch.nodes.water.flowing and node.name ~= goodtorch.nodes.river.source and node.name ~= goodtorch.nodes.river.flowing and not string.match(node.name, "goodtorch:light_") then
 				--minetest.log("action", "[goodtorch] i=" .. i .. " node='" .. node.name .. "' dist=" .. vector.distance(player_pos, p))
 				done = true
 			end
@@ -197,16 +229,16 @@ end
 local function update_illumination(player)
 	local name = player:get_player_name()
 
-	if not player_lights[name] then
+	if not goodtorch.player_lights[name] then
 		return  -- Player has just joined/left
 	end
 	local player_pos = player:get_pos()
-	local old_pos = player_lights[name].pos
+	local old_pos = goodtorch.player_lights[name].pos
 	local new_light = get_light_node(player)
 	if not new_light then -- player might not have the light in their hand or on, so let's clear old positions
 		-- No illumination
 		remove_light(old_pos)
-		player_lights[name].pos = nil
+		goodtorch.player_lights[name].pos = nil
 		return -- Done for now
 	end
 	local pos = new_light.pos
@@ -220,7 +252,6 @@ local function update_illumination(player)
 		end
 	end
 	-- Update illumination
-	player_lights[name].pos = pos
 	if node then
 		local dist = vector.distance(player_pos, pos)
 		if pos and dist < 100 then -- Only replace if the distance isn't past 100 (99 or less)
@@ -228,13 +259,13 @@ local function update_illumination(player)
 			if old_pos and not vector.equals(old_pos, pos) then
 				remove_light(old_pos)
 			end
-			player_lights[name].pos = pos
+			goodtorch.player_lights[name].pos = pos
 			return
 		end
 	end
 	-- No illumination
 	remove_light(old_pos)
-	player_lights[name].pos = nil
+	goodtorch.player_lights[name].pos = nil
 end
 
 local timer = 0
@@ -258,18 +289,25 @@ end)
 
 minetest.register_on_joinplayer(function(player)
 	local name = player:get_player_name()
-	if not player_lights[name] then
-		player_lights[name] = {}
+	if not goodtorch.player_lights[name] then
+		goodtorch.player_lights[name] = {}
 	end
 end)
 
 minetest.register_on_leaveplayer(function(player)
 	local name = player:get_player_name()
-	if player_lights[name] then
-		remove_light(player_lights[name].pos)
+	if goodtorch.player_lights[name] then
+		remove_light(goodtorch.player_lights[name].pos)
 	end
-	player_lights[name] = nil
+	goodtorch.player_lights[name] = nil
 end)
+
+local water_sound = nil
+if goodtorch.detect_gamemode() == "MTG" then
+	water_sounds = default.node_sound_water_defaults()
+elseif goodtorch.detect_gamemode() == "MCL" then
+	water_sound = mcl_sounds.node_sound_water_defaults()
+end
 
 for n = 0, 14 do
 	-- air
@@ -289,6 +327,7 @@ for n = 0, 14 do
 		},
 		drop = "",
 	})
+
 	-- aqua
 	minetest.register_node("goodtorch:light_water_"..n, {
 		drawtype = "liquid",
@@ -331,7 +370,7 @@ for n = 0, 14 do
 		liquid_viscosity = 1,
 		post_effect_color = {a = 103, r = 30, g = 60, b = 90},
 		groups = {water = 3, liquid = 3, cools_lava = 1, flash_light = 1},
-		sounds = default.node_sound_water_defaults(),
+		sounds = water_sound,
 	})
 	-- aqua_flow_<param2>
 	minetest.register_node("goodtorch:light_water_flowing_"..n, {
@@ -378,7 +417,7 @@ for n = 0, 14 do
 		post_effect_color = {a = 103, r = 30, g = 60, b = 90},
 		groups = {water = 3, liquid = 3, not_in_creative_inventory = 1,
 			cools_lava = 1, flash_light = 1},
-		sounds = default.node_sound_water_defaults(),
+		sounds = water_sound,
 	})
 	-- aqua_river
 	minetest.register_node("goodtorch:light_river_"..n, {
@@ -427,7 +466,7 @@ for n = 0, 14 do
 		liquid_range = 2,
 		post_effect_color = {a = 103, r = 30, g = 76, b = 90},
 		groups = {water = 3, liquid = 3, cools_lava = 1, flash_light = 1},
-		sounds = default.node_sound_water_defaults(),
+		sounds = water_sound,
 	})
 	-- aqua_river_flow_<param2>
 	minetest.register_node("goodtorch:light_river_flowing_"..n, {
@@ -475,7 +514,7 @@ for n = 0, 14 do
 		post_effect_color = {a = 103, r = 30, g = 76, b = 90},
 		groups = {water = 3, liquid = 3, not_in_creative_inventory = 1,
 			cools_lava = 1, flash_light = 1},
-		sounds = default.node_sound_water_defaults(),
+		sounds = water_sound,
 	})
 end
 
@@ -512,13 +551,21 @@ minetest.register_craftitem("goodtorch:flashlight_on", {
 	},
 })
 
+-- Chance the recipe based on gamemode (assume Minetest Game first)
+local mese_crystal_fragment = "default:mese_crystal_fragment"
+local mese_crystal = "default:mese_crystal"
+local steel_ingot = "default:steel_ingot"
+if goodtorch.detect_gamemode() == "MCL" then
+	steel_ingot = "mcl_core:iron_ingot"
+	-- Because MineClone doesn't have mese I'll just use the redstone stuff
+	mese_crystal = "mesecons_lightstone:lightstone_off" -- Don't forget to change the lightbulb :P
+	mese_crystal_fragment = "mesecons_walllever:wall_lever_off" -- Since it makes more sense to be a switch than a button
+end
 minetest.register_craft({
 	output = "goodtorch:flashlight_off",
 	recipe = {
-		{"", "default:mese_crystal_fragment", ""},
-		{"default:mese_crystal", "default:steel_ingot", "default:steel_ingot"},
+		{"", mese_crystal_fragment, ""},
+		{mese_crystal, steel_ingot, steel_ingot},
 		{"", "", ""},
 	}
 })
-
-
