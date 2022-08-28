@@ -125,7 +125,7 @@ local function get_light_node(player)
 			look_dir = player:get_look_dir()
 			p = {
 				x = player_pos.x + (math.sin(look_dir.x)*i),
-				y = player_pos.y + player_eye_offset.y+(math.sin(look_dir.y)*i),
+				y = player_pos.y + player_eye_offset+(math.sin(look_dir.y)*i),
 				z = player_pos.z + (math.sin(look_dir.z)*i)
 			}
 			lfactor = math.floor(0.14*(100-i))
@@ -144,7 +144,7 @@ local function get_light_node(player)
 			if can_replace(p) ~= "" then -- If it's valid let's continue with valid choices
 				p = {
 					x = player_pos.x + (math.sin(look_dir.x)*(i-1)),
-					y = player_pos.y + player_eye_offset.y+(math.sin(look_dir.y)*(i-1)),
+					y = player_pos.y + player_eye_offset+(math.sin(look_dir.y)*(i-1)),
 					z = player_pos.z + (math.sin(look_dir.z)*(i-1))
 				}
 				nn = light_name(p, lfactor)
