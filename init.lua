@@ -512,7 +512,7 @@ if goodtorch.detect_gamemode() == "MCL" then
 	steel_ingot = "mcl_core:iron_ingot"
 	-- Because MineClone doesn't have mese I'll just use the redstone stuff
 	mese_crystal = "mesecons_lightstone:lightstone_off" -- Don't forget to change the lightbulb :P
-	mese_crystal_fragment = "mesecons:switch" -- Since it makes more sense to be a switch than a button
+	mese_crystal_fragment = "mesecons_walllever:wall_lever_off" -- Since it makes more sense to be a switch than a button
 end
 minetest.register_craft({
 	output = "goodtorch:flashlight_off",
