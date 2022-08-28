@@ -17,9 +17,18 @@
 ]]
 
 -- Thank you, ApolloX, for adding this.
+-- ApollloX: No problem, glade to help.
 
 local player_lights = {}
-local PLAYER_EYE_POS = 1.5 -- Move this possibly to code generation (rather than ugly hardcode)
+
+local function get_eye_pos(player)
+	if not player or not minetest.is_player(player) then
+		return -- Invalid player object
+	end
+	local props = player:get_properties()
+	--minetest.log("action", "[goodtorch] "..minetest.serialize(props))
+	return props.eye_height -- for first person eye offset
+end
 
 local function can_replace(pos)
 	local n = minetest.get_node_or_nil(pos)
@@ -94,9 +103,9 @@ local function light_name(pos, factor)
 	end
 end
 
--- Why is this public? (makes no sense for it do be, it's internally used, and calls outside could be bad)
--- lissobone: cuz i was testing
+-- ApolloX: Ok, well good to know.
 local function get_light_node(player)
+	local player_eye_offset = get_eye_pos(player)
 	local inv = player:get_inventory()
 	local lfactor = 0 -- Light level, closer is brighter, farther is darker (possibly not existent)
 	-- local item = player:get_wielded_item():get_name() -- Perhaps move to like Technic's flashlight in hotbar and on
@@ -104,6 +113,7 @@ local function get_light_node(player)
 	local look_dir = player:get_look_dir()
 	-- I made it so the flashlight always works when it's in the player's
 	-- inventory and switched on. Very cozy!
+	-- ApolloX: Ah, nice idea.
 	if inv:contains_item("main", "goodtorch:flashlight_on") then
 		local p = vector.zero() -- current node we are checking out
 		local nn = "" -- node name for the light node to replace the target with
@@ -115,12 +125,12 @@ local function get_light_node(player)
 			look_dir = player:get_look_dir()
 			p = {
 				x = player_pos.x + (math.sin(look_dir.x)*i),
-				y = player_pos.y + PLAYER_EYE_POS+(math.sin(look_dir.y)*i),
+				y = player_pos.y + player_eye_offset.y+(math.sin(look_dir.y)*i),
 				z = player_pos.z + (math.sin(look_dir.z)*i)
 			}
 			lfactor = math.floor(0.14*(100-i))
 			node = minetest.get_node_or_nil(p)
-			if node == nil then
+			if node == nil then -- ApolloX: Oh yeah didn't check that, that's why get_node_or_nil is so great.
 				return
 			end
 			-- If you spawned in a world pointing at an unloaded
@@ -134,7 +144,7 @@ local function get_light_node(player)
 			if can_replace(p) ~= "" then -- If it's valid let's continue with valid choices
 				p = {
 					x = player_pos.x + (math.sin(look_dir.x)*(i-1)),
-					y = player_pos.y + PLAYER_EYE_POS+(math.sin(look_dir.y)*(i-1)),
+					y = player_pos.y + player_eye_offset.y+(math.sin(look_dir.y)*(i-1)),
 					z = player_pos.z + (math.sin(look_dir.z)*(i-1))
 				}
 				nn = light_name(p, lfactor)
