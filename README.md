@@ -6,3 +6,6 @@ Everyone (especially you) is welcome to make further changes and fixes.
 
 This torch mod utilizes the ray casting algorithm to calculate the endpoint where the beam shall shine.
 Currently works when the flashlight is turned on and is anywhere in the inventory.
+
+This is an unstable branch, and we do not recommend you to use it. The `release` branch should be automatically loaded to contentdb after we
+check everything for bugs.
