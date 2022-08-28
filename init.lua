@@ -52,6 +52,7 @@ local drain_inv = minetest.settings:get_bool("flashlight_drain_inventory", true)
 local battery_life = tonumber(minetest.settings:get("flashlight_battery_life")) or 130
 local battery_drain = math.floor(65535 / (battery_life * 60)) * 5
 local dist = tonumber(minetest.settings:get("flashlight_strength")) or 100
+
 local function use_battery(stack)
 	if stack:get_wear() >= (65535 - battery_drain) then
 		stack:set_name("goodtorch:flashlight_off")
@@ -61,6 +62,7 @@ local function use_battery(stack)
 	local props = player:get_properties()
 	--minetest.log("action", "[goodtorch] "..minetest.serialize(props))
 	return props.eye_height
+end
 
 local function can_replace(pos)
 	local n = minetest.get_node_or_nil(pos)
