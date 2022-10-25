@@ -184,9 +184,9 @@ local function get_light_node(player)
 			player_pos = player:get_pos()
 			look_dir = player:get_look_dir()
 			p = {
-				x = player_pos.x + (math.sin(look_dir.x)*i),
-				y = player_pos.y + PLAYER_EYE_POS+(math.sin(look_dir.y)*i),
-				z = player_pos.z + (math.sin(look_dir.z)*i)
+				x = player_pos.x + look_dir.x*i,
+				y = (player_pos.y + PLAYER_EYE_POS)+look_dir.y*i,
+				z = player_pos.z + look_dir.z*i
 			}
 
 -- ApolloX: Possibly check this is 0 if so break, don't do anything then
