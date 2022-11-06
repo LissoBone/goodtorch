@@ -18,6 +18,8 @@
 
 -- Thank you, ApolloX, for adding this.
 
+local S = minetest.get_translator(minetest.get_current_modname())
+
 goodtorch = {} -- Public API
 goodtorch.modpath = minetest.get_modpath("goodtorch")
 
@@ -43,7 +45,7 @@ else
 	error("This game isn't supported, please go and leave an issue on the github repository with the game name.")
 end
 -- TODO: Finish implementing the battery drain. I took the code from the
--- headlamp mod. 
+-- headlamp mod.
 
 local player_lights = {}
 local PLAYER_EYE_POS = 1.5 -- Move this possibly to code generation (rather than ugly hardcode)
@@ -149,12 +151,12 @@ local function update_inv(player)
 			if not success then
 					return
 			end
-		end	
+		end
 	end
 end
 ]]
 
--- I have to go to sleep because I'll go to university tomorrow, and this 
+-- I have to go to sleep because I'll go to university tomorrow, and this
 -- function doesn't really do much yet, so I'll
 -- comment unfinished battery-related stuff out. The flashlight will still
 -- work as intended, anyways.
@@ -174,7 +176,7 @@ local function get_light_node(player)
 	-- inventory and switched on. Very cozy!
 
 	if inv:contains_item("main", "goodtorch:flashlight_on") then
-		
+
 		local p = vector.zero() -- current node we are checking out
 		local nn = "" -- node name for the light node to replace the target with
 		local node = nil -- The node we are checking out, if it's not possible we need to stop
@@ -541,7 +543,7 @@ local function flashlight_toggle(stack)
 end
 
 minetest.register_craftitem("goodtorch:flashlight_off", {
-	description = "Flashlight (off)",
+	description = S("Flashlight (off)"),
 	inventory_image = "goodtorch_flashlight_off.png",
 	on_place = flashlight_toggle,
 	on_use = flashlight_toggle,
@@ -552,7 +554,7 @@ minetest.register_craftitem("goodtorch:flashlight_off", {
 })
 
 minetest.register_craftitem("goodtorch:flashlight_on", {
-	description = "Flashlight (on)",
+	description = S("Flashlight (on)"),
 	inventory_image = "goodtorch_flashlight_on.png",
 	on_place = flashlight_toggle,
 	on_use = flashlight_toggle,
